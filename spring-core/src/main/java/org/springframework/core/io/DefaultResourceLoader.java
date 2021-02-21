@@ -31,6 +31,7 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 是ResourceLoader的默认实现
  * Default implementation of the {@link ResourceLoader} interface.
  * Used by {@link ResourceEditor}, and serves as base class for
  * {@link org.springframework.context.support.AbstractApplicationContext}.
@@ -56,6 +57,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 
 
 	/**
+	 * 不带参数：使用java.lang.Thread#getContextClassLoader()获取
 	 * Create a new DefaultResourceLoader.
 	 * <p>ClassLoader access will happen using the thread context class loader
 	 * at the time of this ResourceLoader's initialization.
@@ -66,6 +68,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
+	 * 带参数的：可以通过ClassUtils#getDefaultClassLoader()获取
 	 * Create a new DefaultResourceLoader.
 	 * @param classLoader the ClassLoader to load class path resources with, or {@code null}
 	 * for using the thread context class loader at the time of actual resource access
@@ -76,6 +79,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 
 
 	/**
+	 * 可以调用setClassLoader后续再进行设置
 	 * Specify the ClassLoader to load class path resources with, or {@code null}
 	 * for using the thread context class loader at the time of actual resource access.
 	 * <p>The default is that ClassLoader access will happen using the thread context
@@ -86,6 +90,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
+	 * 然后再getClassLoader
 	 * Return the ClassLoader to load class path resources with.
 	 * <p>Will get passed to ClassPathResource's constructor for all
 	 * ClassPathResource objects created by this resource loader.
@@ -140,10 +145,17 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 
+	/**
+	 * 是ResourceLoader里面最核心的方法，它根据提供的location返回相应的Resource。而DefaultResourceLoader对该方法提供了核心实现
+	 * 因为：它两个子类都没有覆盖这个方法，所以可以断定ResourceLoader的资源加载策略就是封装在DefaultResourceLoader中
+	 * @param location the resource location
+	 * @return
+	 */
 	@Override
 	public Resource getResource(String location) {
 		Assert.notNull(location, "Location must not be null");
 
+		// 首先，通过 ProtocolResolver 来加载资源
 		for (ProtocolResolver protocolResolver : getProtocolResolvers()) {
 			Resource resource = protocolResolver.resolve(location, this);
 			if (resource != null) {
@@ -151,12 +163,15 @@ public class DefaultResourceLoader implements ResourceLoader {
 			}
 		}
 
+		// 其次，以 / 开头，返回 ClassPathContextResource 类型的资源
 		if (location.startsWith("/")) {
 			return getResourceByPath(location);
 		}
+		// 再次，以 classpath: 开头，返回 ClassPathResource 类型的资源
 		else if (location.startsWith(CLASSPATH_URL_PREFIX)) {
 			return new ClassPathResource(location.substring(CLASSPATH_URL_PREFIX.length()), getClassLoader());
 		}
+		// 然后，根据是否为文件 URL ，是则返回 FileUrlResource 类型的资源，否则返回 UrlResource 类型的资源
 		else {
 			try {
 				// Try to parse the location as a URL...
@@ -164,6 +179,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 				return (ResourceUtils.isFileURL(url) ? new FileUrlResource(url) : new UrlResource(url));
 			}
 			catch (MalformedURLException ex) {
+				// 最后，返回 ClassPathContextResource 类型的资源
 				// No URL -> resolve as resource path.
 				return getResourceByPath(location);
 			}

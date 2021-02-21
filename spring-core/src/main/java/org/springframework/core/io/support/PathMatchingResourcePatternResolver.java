@@ -200,9 +200,14 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 		}
 	}
 
-
+	/**
+	 * 内置的 ResourceLoader 资源定位器
+	 */
 	private final ResourceLoader resourceLoader;
 
+	/**
+	 * Ant 路径匹配器
+	 */
 	private PathMatcher pathMatcher = new AntPathMatcher();
 
 
